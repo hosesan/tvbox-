@@ -1,0 +1,41 @@
+name: Sync with Upstream Repository
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_repo:
+        description: '上游仓库地址'
+        required: true
+        default: 'qist/tvbox'
+      upstream_branch:
+        description: '上游分支名称'
+        required: true
+        default: 'master'
+  schedule:
+    - cron: '0 */6 * * *'
+  push:
+    branches: [ master ]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Sync upstream
+        env:
+          UPSTREAM_REPO: ${{ github.event.inputs.upstream_repo || 'qist/tvbox' }}
+          UPSTREAM_BRANCH: ${{ github.event.inputs.upstream_branch || 'master' }}
+        run: |
+          git remote add upstream https://github.com/${UPSTREAM_REPO}.git
+          git fetch upstream
+          git checkout ${UPSTREAM_BRANCH}
+          git merge upstream/${UPSTREAM_BRANCH} --no-edit
+          git push origin ${UPSTREAM_BRANCH}
