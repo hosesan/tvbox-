@@ -11,32 +11,39 @@ on:
         required: true
         default: 'master'
   schedule:
-    - cron: '0 */12 * * *'
-  push:
-    branches: [ master ]
-
+    - cron: '0 */12 * * *' # UTC每12小时，北京时间 08:00、20:00
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout current repository
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GET_TOKEN }}
           fetch-depth: 0
 
-      - name: Configure Git
+      - name: Set git config
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: Sync upstream
+      - name: Add upstream remote
         env:
           UPSTREAM_REPO: ${{ github.event.inputs.upstream_repo || 'qist/tvbox' }}
-          UPSTREAM_BRANCH: ${{ github.event.inputs.upstream_branch || 'master' }}
         run: |
           git remote add upstream https://github.com/${UPSTREAM_REPO}.git
           git fetch upstream
+
+      - name: Merge upstream master
+        env:
+          UPSTREAM_BRANCH: ${{ github.event.inputs.upstream_branch || 'master' }}
+        run: |
           git checkout ${UPSTREAM_BRANCH}
-          git merge upstream/${UPSTREAM_BRANCH} --no-edit
-          git push origin ${UPSTREAM_BRANCH}
+          git merge upstream/${UPSTREAM_BRANCH} --no-edit || true
+          if [ "$(git status --porcelain)" ]; then
+            echo "冲突，全部采用上游文件"
+            git checkout --theirs .
+            git add .
+            git commit -m "自动合并上游更新，解决冲突"
+          fi
+          git push origin ${UPSTREAM_BRANCH} --force
