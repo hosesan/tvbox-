@@ -1,3 +1,4 @@
+# workflow: disabled
 name: Update xiaosa
 on:
   workflow_dispatch:
